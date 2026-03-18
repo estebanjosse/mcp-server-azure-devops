@@ -66,9 +66,9 @@ describe('Search Request Handlers', () => {
 
       const response = await handleSearchRequest(mockConnection, request);
       expect(response.content).toHaveLength(1);
-      expect(JSON.parse(response.content[0].text as string)).toEqual(
-        mockSearchResults,
-      );
+      expect(
+        JSON.parse((response.content[0] as { text: string }).text),
+      ).toEqual(mockSearchResults);
       expect(searchCode).toHaveBeenCalledWith(
         mockConnection,
         expect.objectContaining({
@@ -98,9 +98,9 @@ describe('Search Request Handlers', () => {
 
       const response = await handleSearchRequest(mockConnection, request);
       expect(response.content).toHaveLength(1);
-      expect(JSON.parse(response.content[0].text as string)).toEqual(
-        mockSearchResults,
-      );
+      expect(
+        JSON.parse((response.content[0] as { text: string }).text),
+      ).toEqual(mockSearchResults);
       expect(searchWiki).toHaveBeenCalledWith(
         mockConnection,
         expect.objectContaining({
@@ -133,9 +133,9 @@ describe('Search Request Handlers', () => {
 
       const response = await handleSearchRequest(mockConnection, request);
       expect(response.content).toHaveLength(1);
-      expect(JSON.parse(response.content[0].text as string)).toEqual(
-        mockSearchResults,
-      );
+      expect(
+        JSON.parse((response.content[0] as { text: string }).text),
+      ).toEqual(mockSearchResults);
       expect(searchWorkItems).toHaveBeenCalledWith(
         mockConnection,
         expect.objectContaining({
