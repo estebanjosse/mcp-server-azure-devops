@@ -167,6 +167,10 @@ async function startHttpTransport(
     await transport.handleRequest(req, res);
   });
 
+  // Guard against slow/idle connections to prevent resource exhaustion.
+  httpServer.requestTimeout = 30_000; // 30 s per request
+  httpServer.setTimeout(60_000); // 60 s idle socket timeout
+
   await server.connect(transport);
 
   await new Promise<void>((resolve, reject) => {
@@ -197,9 +201,9 @@ async function startHttpTransport(
  *
  * Allowed values are:
  *  - `<host>:<port>` (exact match)
- *  - `<host>` when port is 80 (HTTP default) or 443 (HTTPS default)
- *  - Bare localhost aliases (`localhost`, `127.0.0.1`, `::1`) without a port
- *    only when port is the standard HTTP port 80.
+ *  - `<host>` without a port only when port is the HTTP default port 80
+ *  - Any localhost alias (`localhost`, `127.0.0.1`, `::1`) with the correct port
+ *    when the server is bound to a localhost address
  *
  * @param headerValue The raw value of the incoming Host header
  * @param boundHost The host the server is bound to
@@ -223,8 +227,9 @@ export function isAllowedHost(
       : []),
   ]);
 
-  // Also allow without explicit port for standard ports
-  if (boundPort === 80 || boundPort === 443) {
+  // Allow bare hostname (without port) only for the default HTTP port 80.
+  // Port 443 is intentionally excluded: this server uses plain HTTP, not HTTPS.
+  if (boundPort === 80) {
     allowed.add(boundHost);
     if (LOCALHOST_HOSTS.has(boundHost)) {
       LOCALHOST_HOSTS.forEach((h) => allowed.add(h));

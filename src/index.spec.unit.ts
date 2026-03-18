@@ -180,8 +180,9 @@ describe('index', () => {
       expect(isAllowedHost('127.0.0.1', '127.0.0.1', 80)).toBe(true);
     });
 
-    it('should not allow bare host without port for non-standard ports', () => {
+    it('should not allow bare host without port for non-standard ports or HTTPS port', () => {
       expect(isAllowedHost('127.0.0.1', '127.0.0.1', 3000)).toBe(false);
+      expect(isAllowedHost('127.0.0.1', '127.0.0.1', 443)).toBe(false);
     });
   });
 });
