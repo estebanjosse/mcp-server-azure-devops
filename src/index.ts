@@ -5,6 +5,8 @@
 
 import { createAzureDevOpsServer } from './server';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import * as http from 'http';
 import dotenv from 'dotenv';
 import { AzureDevOpsConfig } from './shared/types';
 import { AuthenticationMethod } from './shared/auth/auth-factory';
@@ -46,6 +48,39 @@ export function normalizeAuthMethod(
   return AuthenticationMethod.AzureIdentity;
 }
 
+/** Transport modes supported by the server. */
+export type TransportMode = 'stdio' | 'http';
+
+/** Hosts that are considered local and therefore trigger DNS-rebinding protection. */
+const LOCALHOST_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
+
+/**
+ * Normalize the transport mode from the MCP_TRANSPORT environment variable.
+ *
+ * @param transportStr The raw value from the environment variable
+ * @returns A valid TransportMode value ('stdio' by default)
+ */
+export function normalizeTransport(transportStr?: string): TransportMode {
+  if (!transportStr) {
+    return 'stdio';
+  }
+
+  const normalized = transportStr.toLowerCase().trim();
+
+  if (normalized === 'http') {
+    return 'http';
+  }
+
+  if (normalized === 'stdio') {
+    return 'stdio';
+  }
+
+  process.stderr.write(
+    `WARNING: Unrecognized transport '${transportStr}'. Using default (stdio).\n`,
+  );
+  return 'stdio';
+}
+
 // Load environment variables
 dotenv.config();
 
@@ -74,15 +109,129 @@ async function main() {
     // Create the server with configuration
     const server = createAzureDevOpsServer(getConfig());
 
-    // Connect to stdio transport
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
+    const transportMode = normalizeTransport(process.env.MCP_TRANSPORT);
 
-    process.stderr.write('Azure DevOps MCP Server running on stdio\n');
+    if (transportMode === 'http') {
+      await startHttpTransport(server);
+    } else {
+      // Default: stdio transport
+      const transport = new StdioServerTransport();
+      await server.connect(transport);
+      process.stderr.write('Azure DevOps MCP Server running on stdio\n');
+    }
   } catch (error) {
     process.stderr.write(`Error starting server: ${error}\n`);
     process.exit(1);
   }
+}
+
+/**
+ * Start the server with a Streamable HTTP transport.
+ *
+ * Binds to MCP_HTTP_HOST (default: 127.0.0.1) and MCP_HTTP_PORT (default: 3000).
+ * DNS-rebinding protection is applied automatically when binding to a localhost address.
+ *
+ * @param server The MCP server instance to connect
+ */
+async function startHttpTransport(
+  server: ReturnType<typeof createAzureDevOpsServer>,
+): Promise<void> {
+  const host = process.env.MCP_HTTP_HOST || '127.0.0.1';
+  const port = parseInt(process.env.MCP_HTTP_PORT || '3000', 10);
+
+  if (isNaN(port) || port < 1 || port > 65535) {
+    throw new Error(
+      `Invalid MCP_HTTP_PORT value '${process.env.MCP_HTTP_PORT}'. Must be a number between 1 and 65535.`,
+    );
+  }
+
+  const isLocalhost = LOCALHOST_HOSTS.has(host);
+
+  // Stateless transport: each request is handled independently.
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+  });
+
+  const httpServer = http.createServer(async (req, res) => {
+    // DNS-rebinding protection: for localhost bindings, reject requests whose
+    // Host header does not match the expected host:port.
+    if (isLocalhost) {
+      const requestHost = req.headers['host'];
+      if (!isAllowedHost(requestHost, host, port)) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('Forbidden: invalid Host header\n');
+        return;
+      }
+    }
+
+    await transport.handleRequest(req, res);
+  });
+
+  await server.connect(transport);
+
+  await new Promise<void>((resolve, reject) => {
+    httpServer.on('error', reject);
+    httpServer.listen(port, host, () => {
+      process.stderr.write(
+        `Azure DevOps MCP Server running on http://${host}:${port}\n`,
+      );
+      resolve();
+    });
+  });
+
+  // Keep the process alive until interrupted.
+  await new Promise<void>((resolve) => {
+    process.on('SIGINT', () => {
+      httpServer.close();
+      resolve();
+    });
+    process.on('SIGTERM', () => {
+      httpServer.close();
+      resolve();
+    });
+  });
+}
+
+/**
+ * Determine whether an incoming Host header is allowed under DNS-rebinding protection.
+ *
+ * Allowed values are:
+ *  - `<host>:<port>` (exact match)
+ *  - `<host>` when port is 80 (HTTP default) or 443 (HTTPS default)
+ *  - Bare localhost aliases (`localhost`, `127.0.0.1`, `::1`) without a port
+ *    only when port is the standard HTTP port 80.
+ *
+ * @param headerValue The raw value of the incoming Host header
+ * @param boundHost The host the server is bound to
+ * @param boundPort The port the server is bound to
+ */
+export function isAllowedHost(
+  headerValue: string | undefined,
+  boundHost: string,
+  boundPort: number,
+): boolean {
+  if (!headerValue) {
+    return false;
+  }
+
+  // Accepted forms: "host:port" or just "host" (when port is implicit)
+  const allowed = new Set<string>([
+    `${boundHost}:${boundPort}`,
+    // Allow all localhost aliases with the correct port
+    ...(LOCALHOST_HOSTS.has(boundHost)
+      ? [...LOCALHOST_HOSTS].map((h) => `${h}:${boundPort}`)
+      : []),
+  ]);
+
+  // Also allow without explicit port for standard ports
+  if (boundPort === 80 || boundPort === 443) {
+    allowed.add(boundHost);
+    if (LOCALHOST_HOSTS.has(boundHost)) {
+      LOCALHOST_HOSTS.forEach((h) => allowed.add(h));
+    }
+  }
+
+  return allowed.has(headerValue);
 }
 
 // Start the server when this script is run directly
