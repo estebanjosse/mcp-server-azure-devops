@@ -134,21 +134,49 @@ Use HTTP mode only when you intentionally need a network endpoint, and prefer pu
 
 Binding directly to `0.0.0.0` is convenient for containers and local testing, but it should not be treated as a production-hardening strategy by itself.
 
-### Docker example
+### Docker
 
-The project does not ship a Docker image, but you can run the published package in a Node container:
+This repository now ships a Dockerfile for HTTP mode and can be built locally:
+
+```bash
+docker build -t mcp-server-azure-devops:http .
+```
+
+Run the locally built image:
 
 ```bash
 docker run --rm -p 3000:3000 \
-  -e MCP_TRANSPORT=http \
-  -e MCP_HOST=0.0.0.0 \
-  -e MCP_PORT=3000 \
   -e AZURE_DEVOPS_ORG_URL=https://dev.azure.com/your-organization \
   -e AZURE_DEVOPS_AUTH_METHOD=pat \
   -e AZURE_DEVOPS_PAT=your-personal-access-token \
-  node:20-alpine \
-  npx -y @tiberriver256/mcp-server-azure-devops --transport http --host 0.0.0.0 --port 3000
+  mcp-server-azure-devops:http
 ```
+
+The container defaults to HTTP mode with these runtime settings:
+
+- `MCP_TRANSPORT=http`
+- `MCP_HOST=0.0.0.0`
+- `MCP_PORT=3000`
+
+The HTTP endpoint is exposed at `/mcp`.
+
+GitHub Actions also publishes the image to GHCR for this repository:
+
+```bash
+docker pull ghcr.io/estebanjosse/mcp-server-azure-devops:latest
+```
+
+Example with the published image:
+
+```bash
+docker run --rm -p 3000:3000 \
+  -e AZURE_DEVOPS_ORG_URL=https://dev.azure.com/your-organization \
+  -e AZURE_DEVOPS_AUTH_METHOD=pat \
+  -e AZURE_DEVOPS_PAT=your-personal-access-token \
+  ghcr.io/estebanjosse/mcp-server-azure-devops:latest
+```
+
+Published tags include `latest` on `main`, the commit SHA, and the semantic version extracted from release tags such as `mcp-server-azure-devops-v0.1.45`.
 
 ### Usage with Claude Desktop/Cursor AI
 
