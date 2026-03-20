@@ -64,10 +64,90 @@ npm run build
 npm start              # runs: node dist/index.js
 ```
 
+### Transport modes
+
+This server supports two transports:
+
+- `stdio` for local, process-spawned MCP clients
+- `http` for explicit, opt-in Streamable HTTP usage
+
+`stdio` remains the default. If you do not pass any HTTP-related configuration, the server behaves exactly as before.
+
+#### Default stdio mode
+
+```bash
+npm start
+```
+
+Equivalent explicit form:
+
+```bash
+npm start -- --transport stdio
+```
+
+#### Optional HTTP mode
+
+HTTP mode is disabled unless you explicitly select it with a CLI flag or environment variable.
+
+CLI flags:
+
+```bash
+npm start -- --transport http --host 127.0.0.1 --port 3000
+```
+
+Environment variables:
+
+```bash
+MCP_TRANSPORT=http MCP_HOST=127.0.0.1 MCP_PORT=3000 npm start
+```
+
+HTTP mode exposes a native MCP Streamable HTTP endpoint at `/mcp`.
+
+This implementation is intentionally conservative:
+
+- stdio remains the default and recommended mode for local integrations
+- HTTP mode is stateless and POST-only in this first pass
+- remote exposure should usually be protected externally by a reverse proxy, firewall, private network boundary, or similar control plane
+- this repository does not add a custom HTTP auth layer in front of the MCP endpoint
+
 For iterative development (auto-reload):
 
 ```bash
 npm run dev            # runs src/index.ts via ts-node-dev
+```
+
+For iterative development in HTTP mode:
+
+```bash
+npm run dev -- --transport http --host 127.0.0.1 --port 3000
+```
+
+### HTTP deployment caution
+
+Running the server over HTTP changes the trust boundary compared to stdio.
+
+Use HTTP mode only when you intentionally need a network endpoint, and prefer putting it behind:
+
+- a reverse proxy that terminates TLS
+- network-level access controls
+- an internal-only or loopback binding where possible
+
+Binding directly to `0.0.0.0` is convenient for containers and local testing, but it should not be treated as a production-hardening strategy by itself.
+
+### Docker example
+
+The project does not ship a Docker image, but you can run the published package in a Node container:
+
+```bash
+docker run --rm -p 3000:3000 \
+  -e MCP_TRANSPORT=http \
+  -e MCP_HOST=0.0.0.0 \
+  -e MCP_PORT=3000 \
+  -e AZURE_DEVOPS_ORG_URL=https://dev.azure.com/your-organization \
+  -e AZURE_DEVOPS_AUTH_METHOD=pat \
+  -e AZURE_DEVOPS_PAT=your-personal-access-token \
+  node:20-alpine \
+  npx -y @tiberriver256/mcp-server-azure-devops --transport http --host 0.0.0.0 --port 3000
 ```
 
 ### Usage with Claude Desktop/Cursor AI
@@ -164,6 +244,9 @@ Key environment variables include:
 | `AZURE_TENANT_ID`              | Azure AD tenant ID (for service principals)                                        | Only with service principals | -                |
 | `AZURE_CLIENT_ID`              | Azure AD application ID (for service principals)                                   | Only with service principals | -                |
 | `AZURE_CLIENT_SECRET`          | Azure AD client secret (for service principals)                                    | Only with service principals | -                |
+| `MCP_TRANSPORT`                | MCP transport selection (`stdio` or `http`)                                        | No                           | `stdio`          |
+| `MCP_HOST`                     | Host interface for HTTP mode                                                       | Only with HTTP transport     | `127.0.0.1`      |
+| `MCP_PORT`                     | TCP port for HTTP mode                                                             | Only with HTTP transport     | `3000`           |
 | `LOG_LEVEL`                    | Logging level (debug, info, warn, error)                                           | No                           | info             |
 
 ## Troubleshooting Authentication
