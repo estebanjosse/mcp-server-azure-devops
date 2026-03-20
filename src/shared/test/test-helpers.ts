@@ -59,3 +59,22 @@ export function shouldSkipIntegrationTest(): boolean {
   }
   return false;
 }
+
+/**
+ * Extracts text content from an MCP response content array.
+ *
+ * The newer MCP SDK models content as a discriminated union, so tests need to
+ * narrow to a text item before reading `.text`.
+ */
+export function getTextContent(
+  content: Array<{ type?: string; text?: unknown }>,
+  index = 0,
+): string {
+  const item = content[index];
+
+  if (!item || item.type !== 'text' || typeof item.text !== 'string') {
+    throw new Error(`Expected text content at index ${index}`);
+  }
+
+  return item.text;
+}
