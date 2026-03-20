@@ -136,11 +136,13 @@ Binding directly to `0.0.0.0` is convenient for containers and local testing, bu
 
 ### Docker
 
-This repository now ships a Dockerfile for HTTP mode and can be built locally:
+This repository now ships a hardened Dockerfile for HTTP mode and can be built locally:
 
 ```bash
 docker build -t mcp-server-azure-devops:http .
 ```
+
+The runtime image is based on a distroless Node.js image to reduce the final attack surface compared to a general-purpose Node runtime image.
 
 Run the locally built image:
 
@@ -160,6 +162,14 @@ The container defaults to HTTP mode with these runtime settings:
 
 The HTTP endpoint is exposed at `/mcp`.
 
+For local orchestration with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+The compose file reads Azure DevOps settings from your shell environment or a local `.env` file.
+
 GitHub Actions also publishes the image to GHCR for this repository:
 
 ```bash
@@ -177,6 +187,8 @@ docker run --rm -p 3000:3000 \
 ```
 
 Published tags include `latest` on `main`, the commit SHA, and the semantic version extracted from release tags such as `mcp-server-azure-devops-v0.1.45`.
+
+The repository also includes a dedicated validation workflow for pull requests that builds the container image without publishing it, so Docker regressions are caught before merge.
 
 ### Usage with Claude Desktop/Cursor AI
 
