@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.1.46](https://github.com/estebanjosse/mcp-server-azure-devops/compare/mcp-server-azure-devops-v0.1.45...mcp-server-azure-devops-v0.1.46) (2026-03-21)
+
+
+### Features
+
+* add Dockerfile and GitHub Actions workflow for container publishing ([f9af877](https://github.com/estebanjosse/mcp-server-azure-devops/commit/f9af8775a1f36ec0a375155ae2308a72fd33ae68))
+* add dockerfile and publication ([6af4a94](https://github.com/estebanjosse/mcp-server-azure-devops/commit/6af4a94e9c3f46ee8cd04c88053c3bc0b35b50bc))
+* add dockerfile and publication ([6af4a94](https://github.com/estebanjosse/mcp-server-azure-devops/commit/6af4a94e9c3f46ee8cd04c88053c3bc0b35b50bc))
+* add Dockerfile, Docker Compose, and validation workflow for container publishing ([b671b52](https://github.com/estebanjosse/mcp-server-azure-devops/commit/b671b5234106cb0f7829d550937fac155d60d547))
+* adds an optional native Streamable HTTP transport ([d415aa7](https://github.com/estebanjosse/mcp-server-azure-devops/commit/d415aa78f7767f2bedbbf584860bf4be2a45ca1b))
+* adds an optional native Streamable HTTP transport ([a0b27fb](https://github.com/estebanjosse/mcp-server-azure-devops/commit/a0b27fb50277d2fe3457f058c35972db8ddddd74))
+
 ## [0.1.45](https://github.com/Tiberriver256/mcp-server-azure-devops/compare/mcp-server-azure-devops-v0.1.44...mcp-server-azure-devops-v0.1.45) (2026-02-05)
 
 
